@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import Groq from 'groq-sdk';
 import { z } from 'zod';
 
 export interface RawTransactionInput {
@@ -38,36 +38,44 @@ Standard COA:
 - 4000: Sales Revenue
 - 5000: Cost of Goods Sold (COGS)
 - 5100: Office Supplies & Software (includes SaaS platforms like Slack, AWS, Zoom)
-- 5200: Rent & Lease Expenses
+- 5200: Rent & Lease Expenses (includes WeWork, Regus, office workspace)
 - 5300: Travel & Entertainment (includes Uber, Airlines, Restaurants)
 - 5400: Professional Services (Legal/Accounting)
 - 5500: Payroll & Employee Benefits (includes ADP, Gusto, direct wages)
 
-For each transaction, provide:
-1. The correct COA code.
-2. A confidence score (0.00 to 1.00) based on how explicit the description is.
-3. A brief, one-sentence logical justification.
-4. A boolean 'clarification_needed' flag set to true if the item is ambiguous (e.g., generic names like 'Amazon', 'AMZN', 'Target', 'Transfer', or atypical amounts with vague names).`;
+For each transaction, provide a JSON object adhering to this schema:
+{
+  "classifications": [
+    {
+      "raw_id": "string",
+      "suggested_code": "string (one of standard COA codes)",
+      "confidence": number (0.00 to 1.00 based on explicit description match),
+      "reason": "string (brief one-sentence justification)",
+      "clarification_needed": boolean (true if vendor/amount is ambiguous like AMZN MKTP, Target, Transfer)
+    }
+  ]
+}`;
 
 export async function classifyTransactionsWithAI(
   transactions: RawTransactionInput[]
 ): Promise<ClassificationResult[]> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const groqApiKey = process.env.GROQ_API_KEY;
 
-  if (apiKey && apiKey.trim() !== '' && !apiKey.includes('your-key')) {
+  if (groqApiKey && groqApiKey.trim() !== '') {
     try {
-      const openai = new OpenAI({ apiKey });
-      
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+      const groq = new Groq({ apiKey: groqApiKey });
+
+      const response = await groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           {
             role: 'user',
-            content: `Classify the following batch of transactions:\n${JSON.stringify(transactions, null, 2)}`
+            content: `Classify the following batch of raw transactions:\n${JSON.stringify(transactions, null, 2)}`
           }
         ],
-        response_format: { type: 'json_object' }
+        response_format: { type: 'json_object' },
+        temperature: 0.1
       });
 
       const content = response.choices[0]?.message?.content;
@@ -79,19 +87,18 @@ export async function classifyTransactionsWithAI(
         }
       }
     } catch (err) {
-      console.warn('OpenAI API call failed or timed out. Falling back to local forensic classification engine.', err);
+      console.warn('Groq API call failed or timed out. Falling back to local forensic engine.', err);
     }
   }
 
-  // Fallback intelligent forensic classification engine
+  // Fallback forensic engine
   return transactions.map((tx) => fallbackClassify(tx));
 }
 
 function fallbackClassify(tx: RawTransactionInput): ClassificationResult {
   const desc = tx.description.toUpperCase();
-  const amt = Math.abs(tx.amount);
 
-  // 1. Vague Vendor / Amazon Marketplace Check (PRD Scenario 1)
+  // 1. Vague Vendor / Amazon Marketplace (PRD Scenario 1)
   if (desc.includes('AMZN') || desc.includes('AMAZON') || desc.includes('TARGET') || desc.includes('TRANSFER')) {
     return {
       raw_id: tx.id,
@@ -108,7 +115,7 @@ function fallbackClassify(tx: RawTransactionInput): ClassificationResult {
       raw_id: tx.id,
       suggested_code: '5500',
       confidence: 0.98,
-      reason: "Explicit mention of payroll processor and fee/salary disbursement aligns directly with Payroll & Employee Benefits.",
+      reason: "Explicit mention of ADP payroll processor and fee schedule aligns directly with Payroll & Employee Benefits.",
       clarification_needed: false
     };
   }
@@ -119,24 +126,24 @@ function fallbackClassify(tx: RawTransactionInput): ClassificationResult {
       raw_id: tx.id,
       suggested_code: '5200',
       confidence: 0.95,
-      reason: "Description specifies workspace lease/rent vendor, categorized under Rent & Lease Expenses.",
+      reason: "Regus is a known workspace lease vendor and description specifies workspace rent.",
       clarification_needed: false
     };
   }
 
   // 4. Cloud Infrastructure & SaaS Software
-  if (desc.includes('AWS') || desc.includes('SLACK') || desc.includes('ZOOM') || desc.includes('GOOGLE') || desc.includes('GITHUB') || desc.includes('MICROSOFT')) {
+  if (desc.includes('AWS') || desc.includes('SLACK') || desc.includes('ZOOM') || desc.includes('GOOGLE') || desc.includes('GITHUB')) {
     return {
       raw_id: tx.id,
       suggested_code: '5100',
       confidence: 0.98,
-      reason: "Recognized cloud software infrastructure SaaS subscription categorized under Office Supplies & Software.",
+      reason: "Recognized cloud infrastructure SaaS subscription categorized under Office Supplies & Software.",
       clarification_needed: false
     };
   }
 
   // 5. Travel & Rideshare
-  if (desc.includes('UBER') || desc.includes('LYFT') || desc.includes('DELTA') || desc.includes('UNITED') || desc.includes('AIRBNB') || desc.includes('HOTEL')) {
+  if (desc.includes('UBER') || desc.includes('LYFT') || desc.includes('DELTA') || desc.includes('UNITED') || desc.includes('AIRBNB')) {
     return {
       raw_id: tx.id,
       suggested_code: '5300',
@@ -147,7 +154,7 @@ function fallbackClassify(tx: RawTransactionInput): ClassificationResult {
   }
 
   // 6. Professional Services
-  if (desc.includes('LEGAL') || desc.includes('COOLEY') || desc.includes('DELOITTE') || desc.includes('CPA') || desc.includes('ATTORNEY')) {
+  if (desc.includes('LEGAL') || desc.includes('COOLEY') || desc.includes('DELOITTE') || desc.includes('CPA')) {
     return {
       raw_id: tx.id,
       suggested_code: '5400',
@@ -168,7 +175,6 @@ function fallbackClassify(tx: RawTransactionInput): ClassificationResult {
     };
   }
 
-  // Generic Default
   return {
     raw_id: tx.id,
     suggested_code: '5000',
@@ -183,13 +189,13 @@ export async function generateClientEmailDraft(
   clientName: string = 'Client',
   accountantName: string = 'Accountant'
 ): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const groqApiKey = process.env.GROQ_API_KEY;
 
-  if (apiKey && apiKey.trim() !== '' && !apiKey.includes('your-key')) {
+  if (groqApiKey && groqApiKey.trim() !== '') {
     try {
-      const openai = new OpenAI({ apiKey });
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+      const groq = new Groq({ apiKey: groqApiKey });
+      const response = await groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
         messages: [
           {
             role: 'system',
@@ -197,24 +203,24 @@ export async function generateClientEmailDraft(
           },
           {
             role: 'user',
-            content: `Draft a client email for the following transaction:
+            content: `Draft a polite, professional client email for the following transaction:
 Date: ${tx.date}
 Description: ${tx.description}
 Amount: $${Math.abs(tx.amount).toFixed(2)}
 Client Name: ${clientName}
 Accountant Name: ${accountantName}`
           }
-        ]
+        ],
+        temperature: 0.3
       });
 
       const emailText = response.choices[0]?.message?.content;
       if (emailText) return emailText;
     } catch (err) {
-      console.warn('OpenAI email draft API call failed. Using fallback template generator.', err);
+      console.warn('Groq email draft API call failed. Using fallback template generator.', err);
     }
   }
 
-  // High-quality PRD-aligned email fallback template
   return `Hi ${clientName},
 
 I hope you're well. While processing your books for last month, we noticed a charge of $${Math.abs(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} to ${tx.description} on ${tx.date}.
