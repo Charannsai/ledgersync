@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { UploadCloud, FileSpreadsheet, FileCode, CheckCircle2, Sparkles } from 'lucide-react';
+import { Upload, FileSpreadsheet, ArrowRight, Zap } from 'lucide-react';
 import Papa from 'papaparse';
 
 interface FileUploaderProps {
@@ -48,11 +48,11 @@ export function FileUploader({ onFileParsed, onLoadPRDScenarios }: FileUploaderP
           if (results.meta.fields && results.meta.fields.length > 0) {
             onFileParsed(results.meta.fields, results.data as Record<string, any>[], file.name);
           } else {
-            setErrorMsg('Unable to parse CSV headers. Please ensure the CSV contains a header row.');
+            setErrorMsg('CSV header row missing or empty.');
           }
         },
         error: (err) => {
-          setErrorMsg(`CSV Parsing Error: ${err.message}`);
+          setErrorMsg(`CSV Error: ${err.message}`);
         }
       });
     } else if (name.endsWith('.json')) {
@@ -67,26 +67,27 @@ export function FileUploader({ onFileParsed, onLoadPRDScenarios }: FileUploaderP
             setErrorMsg('JSON file must contain an array of transaction objects.');
           }
         } catch (err: any) {
-          setErrorMsg(`Invalid JSON file format: ${err.message}`);
+          setErrorMsg(`JSON Format Error: ${err.message}`);
         }
       };
       reader.readAsText(file);
     } else {
-      setErrorMsg('Unsupported file type. Please upload a .csv or .json file.');
+      setErrorMsg('Please upload a .csv or .json ledger export file.');
     }
   };
 
   return (
     <div className="w-full space-y-4">
+      {/* Minimal Upload Box */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 ${
+        className={`group relative border border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-150 bg-white ${
           isDragging
-            ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 shadow-md scale-[1.005]'
-            : 'border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/70 hover:border-indigo-400 hover:bg-slate-50/80 dark:hover:bg-slate-800/50'
+            ? 'border-lime-500 bg-lime-50/30 ring-2 ring-lime-400/20'
+            : 'border-zinc-200 hover:border-lime-500 hover:bg-zinc-50/50'
         }`}
       >
         <input
@@ -98,56 +99,47 @@ export function FileUploader({ onFileParsed, onLoadPRDScenarios }: FileUploaderP
         />
 
         <div className="flex flex-col items-center justify-center space-y-3">
-          <div className="p-3 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full shadow-sm">
-            <UploadCloud className="w-8 h-8" />
+          <div className="p-3.5 bg-zinc-100 group-hover:bg-lime-400/20 text-zinc-900 group-hover:text-lime-700 rounded-full transition-colors">
+            <Upload className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">
-              Upload QuickBooks or Banking Ledger CSV/JSON
+            <h3 className="text-sm font-semibold text-zinc-900">
+              Upload QuickBooks or Banking Ledger (.csv / .json)
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Drag & drop your raw unclassified transaction export file here, or click to browse.
+            <p className="text-xs text-zinc-500 mt-1">
+              Drag & drop file here or click to browse
             </p>
-          </div>
-
-          <div className="flex items-center gap-4 text-xs font-medium text-slate-400 dark:text-slate-500 pt-2">
-            <span className="flex items-center gap-1">
-              <FileSpreadsheet className="w-4 h-4 text-emerald-500" /> Standard .CSV
-            </span>
-            <span className="flex items-center gap-1">
-              <FileCode className="w-4 h-4 text-indigo-500" /> Exported .JSON
-            </span>
           </div>
         </div>
       </div>
 
       {errorMsg && (
-        <div className="p-3 text-xs text-red-700 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg">
+        <div className="p-3 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl">
           {errorMsg}
         </div>
       )}
 
-      {/* Quick Demo Verification Trigger */}
-      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50 via-slate-50 to-blue-50 dark:from-indigo-950/30 dark:via-slate-900/30 dark:to-blue-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-xl">
+      {/* Clean 1-Click Test Loader */}
+      <div className="flex items-center justify-between p-4 bg-white border border-zinc-200 rounded-2xl">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-indigo-600 text-white rounded-lg shadow-xs">
-            <Sparkles className="w-4 h-4" />
+          <div className="p-2 bg-lime-400 text-zinc-950 font-bold rounded-lg text-xs">
+            <Zap className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-              PRD Demo Verification Suite
+            <h4 className="text-xs font-semibold text-zinc-900">
+              PRD Verification Suite (4 Test Scenarios)
             </h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Instant load of test cases: AMZN MKTP US ($241.22), ADP PAYROLL ($4,500.00), REGUS WORKSPACE ($1,800.00), AWS Billing.
+            <p className="text-[11px] text-zinc-500">
+              AMZN MKTP ($241.22), ADP PAYROLL ($4,500.00), REGUS RENT ($1,800.00), AWS Infra.
             </p>
           </div>
         </div>
         <button
           type="button"
           onClick={onLoadPRDScenarios}
-          className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-300 bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-700 rounded-lg shadow-2xs transition-colors shrink-0"
+          className="px-3.5 py-1.5 text-xs font-semibold text-zinc-950 bg-lime-400 hover:bg-lime-500 rounded-xl shadow-2xs transition-colors flex items-center gap-1.5 shrink-0"
         >
-          Load 4 Test Cases
+          Load 4 Test Cases <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>

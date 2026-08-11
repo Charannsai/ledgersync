@@ -1,15 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileUploader } from '@/components/FileUploader';
 import { SchemaMapper } from '@/components/SchemaMapper';
 import { MetricsOverview } from '@/components/MetricsOverview';
 import { LedgerDashboard, TransactionItem } from '@/components/LedgerDashboard';
 import { EmailDraftModal } from '@/components/EmailDraftModal';
-import { Sparkles, ShieldCheck, Database, RefreshCw } from 'lucide-react';
+import { Zap, Cpu, Database } from 'lucide-react';
 import { getCOAByCode } from '@/lib/coa';
 
-// PRD Verification Dataset (4 Scenarios)
 const PRD_DEMO_SCENARIOS = [
   {
     id: 'tx-prd-1',
@@ -38,25 +37,43 @@ const PRD_DEMO_SCENARIOS = [
 ];
 
 export default function LedgerDashboardPage() {
-  // App Workflow State
   const [step, setStep] = useState<'upload' | 'mapping' | 'dashboard'>('upload');
-  
-  // File & Mapping State
+
   const [uploadedFileName, setUploadedFileName] = useState<string>('');
   const [parsedHeaders, setParsedHeaders] = useState<string[]>([]);
   const [rawRows, setRawRows] = useState<Record<string, any>[]>([]);
 
-  // Transactions State
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [isClassifying, setIsClassifying] = useState<boolean>(false);
 
-  // Email Modal State
   const [isEmailModalOpen, setIsEmailModalOpen] = useState<boolean>(false);
   const [selectedTxForEmail, setSelectedTxForEmail] = useState<TransactionItem | null>(null);
   const [emailDraft, setEmailDraft] = useState<string>('');
   const [isGeneratingEmail, setIsGeneratingEmail] = useState<boolean>(false);
 
-  // 1. Handle File Upload
+  useEffect(() => {
+    fetch('/api/transactions')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.transactions && Array.isArray(data.transactions) && data.transactions.length > 0) {
+          const mappedFromDB: TransactionItem[] = data.transactions.map((t: any) => ({
+            id: t.id,
+            date: t.date,
+            description: t.description,
+            amount: t.amount,
+            categoryCode: t.classified_category_code || undefined,
+            confidence: t.confidence_score !== null ? t.confidence_score : undefined,
+            reason: t.classification_reason || undefined,
+            clarificationNeeded: Boolean(t.client_clarification_needed)
+          }));
+          setTransactions(mappedFromDB);
+          setUploadedFileName('SQLite DB');
+          setStep('dashboard');
+        }
+      })
+      .catch((err) => console.log('No prior SQLite transactions loaded', err));
+  }, []);
+
   const handleFileParsed = (headers: string[], rows: Record<string, any>[], fileName: string) => {
     setUploadedFileName(fileName);
     setParsedHeaders(headers);
@@ -64,23 +81,19 @@ export default function LedgerDashboardPage() {
     setStep('mapping');
   };
 
-  // 2. Load PRD Verification Scenarios with 1-click
   const handleLoadPRDScenarios = async () => {
     setUploadedFileName('PRD_Verification_Suite.csv');
     setStep('dashboard');
     await runAIClassification(PRD_DEMO_SCENARIOS);
   };
 
-  // 3. Complete Schema Mapping & Trigger AI Classification
   const handleMappingComplete = async (mappedTransactions: Array<{ id: string; date: string; description: string; amount: number }>) => {
     setStep('dashboard');
     await runAIClassification(mappedTransactions);
   };
 
-  // 4. Run AI Classification Pipeline via API
   const runAIClassification = async (mappedTxns: Array<{ id: string; date: string; description: string; amount: number }>) => {
     setIsClassifying(true);
-    // Initialize base transaction objects
     const initialTxns: TransactionItem[] = mappedTxns.map((m) => ({
       ...m,
       categoryCode: undefined,
@@ -125,8 +138,7 @@ export default function LedgerDashboardPage() {
     }
   };
 
-  // 5. In-line manual update of COA Category code by Accountant
-  const handleUpdateCategory = (id: string, newCode: string) => {
+  const handleUpdateCategory = async (id: string, newCode: string) => {
     setTransactions((prev) =>
       prev.map((tx) => {
         if (tx.id === id) {
@@ -134,7 +146,7 @@ export default function LedgerDashboardPage() {
           return {
             ...tx,
             categoryCode: newCode,
-            confidence: 1.0, // Manual accountant override sets confidence to 100%
+            confidence: 1.0,
             clarificationNeeded: false,
             reason: `Manually classified by accountant to ${newCode} - ${coaItem?.name || 'Category'}.`
           };
@@ -142,9 +154,18 @@ export default function LedgerDashboardPage() {
         return tx;
       })
     );
+
+    try {
+      await fetch('/api/transactions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, categoryCode: newCode })
+      });
+    } catch (err) {
+      console.error('Error updating transaction in SQLite:', err);
+    }
   };
 
-  // 6. Generate Contextual Client Email Draft Modal
   const handleOpenDraftEmail = async (tx: TransactionItem) => {
     setSelectedTxForEmail(tx);
     setIsEmailModalOpen(true);
@@ -158,7 +179,7 @@ export default function LedgerDashboardPage() {
         body: JSON.stringify({
           transaction: tx,
           clientName: 'Accounting Client',
-          accountantName: 'Forward-Deployed Engineer'
+          accountantName: 'Forward-Deployed Accountant'
         })
       });
 
@@ -179,63 +200,54 @@ export default function LedgerDashboardPage() {
     setUploadedFileName('');
   };
 
-  // Stats for metrics bar
   const totalVolume = transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
   const flaggedCount = transactions.filter((t) => t.clarificationNeeded).length;
   const lowConfCount = transactions.filter((t) => (t.confidence ?? 0) < 0.5).length;
   const highConfCount = transactions.filter((t) => (t.confidence ?? 0) >= 0.85).length;
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white">
-      {/* Top Header */}
-      <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white rounded-xl shadow-md">
-              <Sparkles className="w-5 h-5" />
+    <main className="min-h-screen bg-zinc-50/50 text-zinc-900 font-sans antialiased">
+      {/* Minimal Header */}
+      <header className="sticky top-0 z-40 bg-white border-b border-zinc-200 px-6 py-3.5">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 bg-lime-400 rounded-lg flex items-center justify-center font-black text-zinc-950 text-xs">
+              LS
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                  LedgerSync AI
-                </h1>
-                <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 rounded-md border border-indigo-200 dark:border-indigo-800">
-                  Minerva FDE Proof-of-Work
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                QuickBooks & Banking CSV Parser to Standard Chart of Accounts (COA)
-              </p>
-            </div>
+            <h1 className="text-base font-bold text-zinc-900 tracking-tight">
+              LedgerSync AI
+            </h1>
+            <span className="text-xs text-zinc-400 font-medium">|</span>
+            <span className="text-xs font-semibold text-zinc-500">
+              QuickBooks COA Parser
+            </span>
           </div>
 
-          <div className="flex items-center gap-3 text-xs">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-lg font-medium">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>OpenAI GPT-4o-mini Engine</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-medium">
-              <Database className="w-4 h-4 text-indigo-500" />
-              <span>Supabase PostgreSQL Schema</span>
-            </div>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-zinc-100 text-zinc-800 rounded-lg font-medium">
+              <Cpu className="w-3.5 h-3.5 text-zinc-600" /> Groq LLM
+            </span>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-lime-100 text-lime-950 border border-lime-300 rounded-lg font-bold">
+              <Database className="w-3.5 h-3.5 text-lime-700" /> SQLite
+            </span>
           </div>
         </div>
       </header>
 
-      {/* Main App Workspace */}
-      <div className="max-w-7xl mx-auto p-6 md:p-8 space-y-6">
-        {/* Step Indicator */}
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 pb-3">
-          <span className={`px-2.5 py-1 rounded-md ${step === 'upload' ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-800'}`}>
-            1. CSV / JSON Import
+      {/* Main Container */}
+      <div className="max-w-6xl mx-auto p-6 md:p-8 space-y-6">
+        {/* Minimal Steps */}
+        <div className="flex items-center gap-2 text-xs font-medium text-zinc-400 border-b border-zinc-200 pb-3">
+          <span className={`px-2 py-0.5 rounded-md ${step === 'upload' ? 'bg-zinc-900 text-white font-bold' : 'text-zinc-600'}`}>
+            1. Import File
           </span>
-          <span>→</span>
-          <span className={`px-2.5 py-1 rounded-md ${step === 'mapping' ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-800'}`}>
-            2. Dynamic Column Mapping
+          <span>/</span>
+          <span className={`px-2 py-0.5 rounded-md ${step === 'mapping' ? 'bg-zinc-900 text-white font-bold' : 'text-zinc-600'}`}>
+            2. Map Schema
           </span>
-          <span>→</span>
-          <span className={`px-2.5 py-1 rounded-md ${step === 'dashboard' ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-800'}`}>
-            3. AI COA Classification & Client Action Board
+          <span>/</span>
+          <span className={`px-2 py-0.5 rounded-md ${step === 'dashboard' ? 'bg-lime-400 text-zinc-950 font-bold' : 'text-zinc-600'}`}>
+            3. AI Classification Board
           </span>
         </div>
 
@@ -247,7 +259,7 @@ export default function LedgerDashboardPage() {
           />
         )}
 
-        {/* View 2: Dynamic Schema Mapping Step */}
+        {/* View 2: Schema Mapping Step */}
         {step === 'mapping' && (
           <SchemaMapper
             fileName={uploadedFileName}
@@ -258,7 +270,7 @@ export default function LedgerDashboardPage() {
           />
         )}
 
-        {/* View 3: Classified Ledger & Anomaly Action Board */}
+        {/* View 3: Classified Ledger Board */}
         {step === 'dashboard' && (
           <div className="space-y-6">
             <MetricsOverview

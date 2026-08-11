@@ -3,17 +3,12 @@
 import React, { useState, useMemo } from 'react';
 import {
   Search,
-  Filter,
   Download,
   AlertCircle,
   HelpCircle,
   Mail,
-  ChevronDown,
-  Sparkles,
   ArrowUpDown,
-  RefreshCw,
-  CheckCircle2,
-  FileSpreadsheet
+  RefreshCw
 } from 'lucide-react';
 import { STANDARD_COA, getCOAByCode } from '@/lib/coa';
 
@@ -42,7 +37,6 @@ export function LedgerDashboard({
   onUpdateCategory,
   onOpenDraftEmailModal,
   onResetUpload,
-  onLoadPRDScenarios,
   isClassifying
 }: LedgerDashboardProps) {
   const [filterMode, setFilterMode] = useState<'all' | 'flagged' | 'low_conf' | 'high_conf'>('all');
@@ -58,12 +52,10 @@ export function LedgerDashboard({
   const filteredTransactions = useMemo(() => {
     return transactions
       .filter((tx) => {
-        // Filter tabs
         if (filterMode === 'flagged' && !tx.clarificationNeeded) return false;
         if (filterMode === 'low_conf' && (tx.confidence ?? 0) >= 0.5) return false;
         if (filterMode === 'high_conf' && (tx.confidence ?? 0) < 0.85) return false;
 
-        // Search query
         if (searchQuery.trim() !== '') {
           const q = searchQuery.toLowerCase();
           const descMatch = tx.description.toLowerCase().includes(q);
@@ -127,173 +119,151 @@ export function LedgerDashboard({
 
   return (
     <div className="w-full space-y-4">
-      {/* Action Bar & Filters Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-2xs">
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+      {/* Minimal Header & Filter Pills */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white border border-zinc-200 p-3.5 rounded-2xl">
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 md:pb-0">
           <button
             onClick={() => setFilterMode('all')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors ${
               filterMode === 'all'
-                ? 'bg-slate-900 text-white dark:bg-indigo-600 shadow-2xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-zinc-950 text-white'
+                : 'text-zinc-600 hover:bg-zinc-100'
             }`}
           >
-            Show All ({transactions.length})
+            All ({transactions.length})
           </button>
           <button
             onClick={() => setFilterMode('flagged')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors ${
               filterMode === 'flagged'
-                ? 'bg-amber-600 text-white shadow-2xs'
-                : 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100'
+                ? 'bg-lime-400 text-zinc-950 font-bold'
+                : 'text-zinc-700 bg-zinc-100 hover:bg-zinc-200'
             }`}
           >
             <AlertCircle className="w-3.5 h-3.5" />
-            Flagged for Client ({flaggedCount})
+            Flagged ({flaggedCount})
           </button>
           <button
             onClick={() => setFilterMode('low_conf')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors ${
               filterMode === 'low_conf'
-                ? 'bg-rose-600 text-white shadow-2xs'
-                : 'text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100'
+                ? 'bg-zinc-950 text-white'
+                : 'text-zinc-600 hover:bg-zinc-100'
             }`}
           >
-            Low Confidence ({lowConfCount})
+            Low Conf ({lowConfCount})
           </button>
           <button
             onClick={() => setFilterMode('high_conf')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors ${
               filterMode === 'high_conf'
-                ? 'bg-emerald-600 text-white shadow-2xs'
-                : 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100'
+                ? 'bg-zinc-950 text-white'
+                : 'text-zinc-600 hover:bg-zinc-100'
             }`}
           >
-            High Confidence ({highConfCount})
+            High Conf ({highConfCount})
           </button>
         </div>
 
-        {/* Search & Export Buttons */}
+        {/* Search & Actions */}
         <div className="flex items-center gap-2 shrink-0">
-          <div className="relative w-full md:w-56">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <div className="relative w-full md:w-48">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
             <input
               type="text"
-              placeholder="Search description, code..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full text-xs font-medium pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-xs font-medium pl-8 pr-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 outline-none focus:ring-1 focus:ring-lime-500"
             />
           </div>
 
           <button
             onClick={handleExportCSV}
-            className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center gap-1.5 transition-colors"
+            className="px-3 py-1.5 text-xs font-semibold text-zinc-800 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 rounded-xl flex items-center gap-1.5 transition-colors"
           >
-            <Download className="w-3.5 h-3.5" /> Export Cleaned CSV
+            <Download className="w-3.5 h-3.5" /> Export CSV
           </button>
 
           <button
             onClick={onResetUpload}
-            className="p-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
-            title="Upload New File"
+            className="p-1.5 text-zinc-400 hover:text-zinc-900 rounded-xl hover:bg-zinc-100"
+            title="Reset"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Main Ledger Table Container */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
+      {/* Table Container */}
+      <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
         {isClassifying ? (
-          <div className="p-12 text-center space-y-3">
-            <Sparkles className="w-8 h-8 text-indigo-600 animate-bounce mx-auto" />
-            <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-              AI Forensic Accountant at work...
-            </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Mapping raw vendor logs to standard COA and calculating confidence scores
-            </p>
+          <div className="p-12 text-center space-y-2">
+            <div className="w-6 h-6 border-2 border-lime-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            <h4 className="text-xs font-semibold text-zinc-800">Classifying via AI...</h4>
           </div>
         ) : filteredTransactions.length === 0 ? (
-          <div className="p-12 text-center space-y-3">
-            <FileSpreadsheet className="w-8 h-8 text-slate-400 mx-auto" />
-            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-              No transactions match current filter criteria
-            </h4>
-            <button
-              onClick={() => {
-                setFilterMode('all');
-                setSearchQuery('');
-              }}
-              className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
-            >
-              Clear filters
-            </button>
+          <div className="p-12 text-center space-y-2">
+            <p className="text-xs text-zinc-500">No transactions found</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600 dark:text-slate-400">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700 uppercase tracking-wider text-[11px]">
+            <table className="w-full text-left text-xs text-zinc-600">
+              <thead className="bg-zinc-50/80 text-zinc-700 font-bold border-b border-zinc-200 uppercase tracking-wider text-[10px]">
                 <tr>
                   <th
-                    className="p-3.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50"
+                    className="p-3.5 cursor-pointer hover:bg-zinc-100"
                     onClick={() => toggleSort('date')}
                   >
                     <div className="flex items-center gap-1">
-                      Date <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                      Date <ArrowUpDown className="w-3 h-3 text-zinc-400" />
                     </div>
                   </th>
-                  <th className="p-3.5">Raw Description (Vendor/Memo)</th>
+                  <th className="p-3.5">Vendor / Description</th>
                   <th
-                    className="p-3.5 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50"
+                    className="p-3.5 text-right cursor-pointer hover:bg-zinc-100"
                     onClick={() => toggleSort('amount')}
                   >
                     <div className="flex items-center justify-end gap-1">
-                      Amount ($) <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                      Amount ($) <ArrowUpDown className="w-3 h-3 text-zinc-400" />
                     </div>
                   </th>
-                  <th className="p-3.5 min-w-[220px]">Suggested COA Category</th>
+                  <th className="p-3.5 min-w-[200px]">COA Category</th>
                   <th
-                    className="p-3.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50"
+                    className="p-3.5 cursor-pointer hover:bg-zinc-100"
                     onClick={() => toggleSort('confidence')}
                   >
                     <div className="flex items-center gap-1">
-                      Confidence <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                      Confidence <ArrowUpDown className="w-3 h-3 text-zinc-400" />
                     </div>
                   </th>
                   <th className="p-3.5 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+              <tbody className="divide-y divide-zinc-100 font-medium">
                 {filteredTransactions.map((tx) => {
                   const conf = tx.confidence ?? 0;
                   const isFlagged = tx.clarificationNeeded;
-                  const selectedCOA = tx.categoryCode ? getCOAByCode(tx.categoryCode) : null;
 
                   return (
                     <tr
                       key={tx.id}
-                      className={`transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40 ${
-                        isFlagged ? 'bg-amber-50/40 dark:bg-amber-950/20' : ''
+                      className={`hover:bg-zinc-50/60 transition-colors ${
+                        isFlagged ? 'bg-amber-50/20' : ''
                       }`}
                     >
-                      {/* Date */}
-                      <td className="p-3.5 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                      <td className="p-3.5 font-mono text-zinc-700 whitespace-nowrap">
                         {tx.date}
                       </td>
 
-                      {/* Description */}
-                      <td className="p-3.5 text-slate-900 dark:text-slate-100">
-                        <div className="flex items-center gap-2">
+                      <td className="p-3.5 text-zinc-900">
+                        <div className="flex items-center gap-1.5">
                           <span className="font-semibold">{tx.description}</span>
                           {tx.reason && (
                             <button
                               type="button"
                               onClick={() => setActiveReasoningModal(tx)}
-                              className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
-                              title="View AI Forensic Justification"
+                              className="text-zinc-400 hover:text-zinc-900"
                             >
                               <HelpCircle className="w-3.5 h-3.5" />
                             </button>
@@ -301,8 +271,7 @@ export function LedgerDashboard({
                         </div>
                       </td>
 
-                      {/* Amount */}
-                      <td className="p-3.5 text-right font-mono font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                      <td className="p-3.5 text-right font-mono font-bold text-zinc-900 whitespace-nowrap">
                         ${Math.abs(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </td>
 
@@ -311,12 +280,12 @@ export function LedgerDashboard({
                         <select
                           value={tx.categoryCode || ''}
                           onChange={(e) => onUpdateCategory(tx.id, e.target.value)}
-                          className="w-full text-xs font-semibold bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                          className="w-full text-xs font-semibold bg-white border border-zinc-200 rounded-lg p-1.5 text-zinc-900 focus:ring-1 focus:ring-lime-500 outline-none cursor-pointer"
                         >
-                          <option value="">-- Select COA Code --</option>
+                          <option value="">-- Select COA --</option>
                           {STANDARD_COA.map((item) => (
                             <option key={item.code} value={item.code}>
-                              {item.code} - {item.name} ({item.type})
+                              {item.code} - {item.name}
                             </option>
                           ))}
                         </select>
@@ -326,45 +295,34 @@ export function LedgerDashboard({
                       <td className="p-3.5 whitespace-nowrap">
                         {tx.confidence !== undefined ? (
                           <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                               conf >= 0.85
-                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                                ? 'bg-lime-100 text-lime-950 border border-lime-300'
                                 : conf >= 0.5
-                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
-                                : 'bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
+                                ? 'bg-zinc-100 text-zinc-800 border border-zinc-200'
+                                : 'bg-amber-100 text-amber-900 border border-amber-300'
                             }`}
                           >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                conf >= 0.85 ? 'bg-emerald-600' : conf >= 0.5 ? 'bg-amber-600' : 'bg-rose-600'
-                              }`}
-                            />
-                            {(conf * 100).toFixed(0)}% {conf >= 0.85 ? 'High' : conf >= 0.5 ? 'Medium' : 'Flagged'}
+                            {(conf * 100).toFixed(0)}% {conf >= 0.85 ? 'High' : conf >= 0.5 ? 'Med' : 'Flagged'}
                           </span>
                         ) : (
-                          <span className="text-slate-400">-</span>
+                          <span className="text-zinc-400">-</span>
                         )}
                       </td>
 
                       {/* Action */}
                       <td className="p-3.5 text-right whitespace-nowrap">
-                        {isFlagged ? (
-                          <button
-                            type="button"
-                            onClick={() => onOpenDraftEmailModal(tx)}
-                            className="px-3 py-1.5 text-xs font-semibold text-amber-800 dark:text-amber-200 bg-amber-100 dark:bg-amber-900/60 hover:bg-amber-200 dark:hover:bg-amber-800 border border-amber-300 dark:border-amber-700 rounded-lg shadow-2xs inline-flex items-center gap-1.5 transition-colors"
-                          >
-                            <Mail className="w-3.5 h-3.5" /> Draft Email
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => onOpenDraftEmailModal(tx)}
-                            className="px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg inline-flex items-center gap-1 transition-colors"
-                          >
-                            <Mail className="w-3.5 h-3.5" /> Clarify
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => onOpenDraftEmailModal(tx)}
+                          className={`px-3 py-1.5 text-xs font-semibold rounded-xl inline-flex items-center gap-1.5 transition-colors ${
+                            isFlagged
+                              ? 'bg-lime-400 text-zinc-950 hover:bg-lime-500 font-bold shadow-2xs'
+                              : 'text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200'
+                          }`}
+                        >
+                          <Mail className="w-3.5 h-3.5" /> Draft Email
+                        </button>
                       </td>
                     </tr>
                   );
@@ -375,33 +333,19 @@ export function LedgerDashboard({
         )}
       </div>
 
-      {/* AI Forensic Reasoning Modal */}
+      {/* AI Reasoning Modal */}
       {activeReasoningModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-2xs">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-600" /> AI Classification Reasoning
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-2xs">
+          <div className="bg-white border border-zinc-200 rounded-2xl p-5 max-w-md w-full shadow-xl space-y-3">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+              <h3 className="text-xs font-bold text-zinc-900">AI Classification Reasoning</h3>
+              <button onClick={() => setActiveReasoningModal(null)} className="text-xs text-zinc-400">✕</button>
+            </div>
+            <p className="text-xs text-zinc-600 leading-relaxed">{activeReasoningModal.reason}</p>
+            <div className="flex justify-end pt-1">
               <button
                 onClick={() => setActiveReasoningModal(null)}
-                className="text-xs text-slate-400 hover:text-slate-600"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="space-y-2 text-xs">
-              <div className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-lg font-mono text-slate-800 dark:text-slate-200">
-                {activeReasoningModal.description} — ${activeReasoningModal.amount.toFixed(2)}
-              </div>
-              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                {activeReasoningModal.reason}
-              </p>
-            </div>
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setActiveReasoningModal(null)}
-                className="px-4 py-1.5 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg"
+                className="px-3.5 py-1 text-xs font-semibold text-white bg-zinc-900 rounded-lg"
               >
                 Close
               </button>
