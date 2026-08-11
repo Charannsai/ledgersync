@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { Upload, FileSpreadsheet, ArrowRight, Zap } from 'lucide-react';
+import { Upload, ArrowRight, Zap, Download } from 'lucide-react';
 import Papa from 'papaparse';
 
 interface FileUploaderProps {
@@ -78,7 +78,7 @@ export function FileUploader({ onFileParsed, onLoadPRDScenarios }: FileUploaderP
 
   return (
     <div className="w-full space-y-4">
-      {/* Minimal Upload Box */}
+      {/* Upload Drop Zone */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -104,7 +104,7 @@ export function FileUploader({ onFileParsed, onLoadPRDScenarios }: FileUploaderP
           </div>
           <div>
             <h3 className="text-sm font-semibold text-zinc-900">
-              Upload QuickBooks or Banking Ledger (.csv / .json)
+              Upload Bank or QuickBooks Ledger (.csv / .json)
             </h3>
             <p className="text-xs text-zinc-500 mt-1">
               Drag & drop file here or click to browse
@@ -119,28 +119,38 @@ export function FileUploader({ onFileParsed, onLoadPRDScenarios }: FileUploaderP
         </div>
       )}
 
-      {/* Clean 1-Click Test Loader */}
-      <div className="flex items-center justify-between p-4 bg-white border border-zinc-200 rounded-2xl">
+      {/* Sample Data Loader & Downloader */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white border border-zinc-200 rounded-2xl gap-3">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-lime-400 text-zinc-950 font-bold rounded-lg text-xs">
             <Zap className="w-4 h-4" />
           </div>
           <div>
             <h4 className="text-xs font-semibold text-zinc-900">
-              PRD Verification Suite (4 Test Scenarios)
+              Sample Ledger Test Data
             </h4>
             <p className="text-[11px] text-zinc-500">
-              AMZN MKTP ($241.22), ADP PAYROLL ($4,500.00), REGUS RENT ($1,800.00), AWS Infra.
+              Quickly test the classification pipeline with sample bank transactions.
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onLoadPRDScenarios}
-          className="px-3.5 py-1.5 text-xs font-semibold text-zinc-950 bg-lime-400 hover:bg-lime-500 rounded-xl shadow-2xs transition-colors flex items-center gap-1.5 shrink-0"
-        >
-          Load 4 Test Cases <ArrowRight className="w-3.5 h-3.5" />
-        </button>
+
+        <div className="flex items-center gap-2">
+          <a
+            href="/sample_ledger.csv"
+            download="sample_ledger.csv"
+            className="px-3 py-1.5 text-xs font-semibold text-zinc-800 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 rounded-xl transition-colors flex items-center gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5" /> Download Sample CSV
+          </a>
+          <button
+            type="button"
+            onClick={onLoadPRDScenarios}
+            className="px-3.5 py-1.5 text-xs font-semibold text-zinc-950 bg-lime-400 hover:bg-lime-500 rounded-xl shadow-2xs transition-colors flex items-center gap-1.5 shrink-0"
+          >
+            Load Sample Data <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
     </div>
   );
