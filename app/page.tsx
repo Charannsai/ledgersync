@@ -6,30 +6,30 @@ import { SchemaMapper } from '@/components/SchemaMapper';
 import { MetricsOverview } from '@/components/MetricsOverview';
 import { LedgerDashboard, TransactionItem } from '@/components/LedgerDashboard';
 import { EmailDraftModal } from '@/components/EmailDraftModal';
-import { Zap, Cpu, Database } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { getCOAByCode } from '@/lib/coa';
 
-const PRD_DEMO_SCENARIOS = [
+const SAMPLE_TEST_SCENARIOS = [
   {
-    id: 'tx-prd-1',
+    id: 'tx-sample-1',
     date: '2024-10-14',
     description: 'AMZN MKTP US $241.22',
     amount: 241.22
   },
   {
-    id: 'tx-prd-2',
+    id: 'tx-sample-2',
     date: '2024-10-12',
     description: 'ADP PAYROLL FEES $4,500.00',
     amount: 4500.00
   },
   {
-    id: 'tx-prd-3',
+    id: 'tx-sample-3',
     date: '2024-10-15',
     description: 'REGUS WORKSPACE RENT $1,800.00',
     amount: 1800.00
   },
   {
-    id: 'tx-prd-4',
+    id: 'tx-sample-4',
     date: '2024-10-10',
     description: 'AWS Billing Cloud Infra',
     amount: 1240.23
@@ -37,6 +37,8 @@ const PRD_DEMO_SCENARIOS = [
 ];
 
 export default function LedgerDashboardPage() {
+  const [mounted, setMounted] = useState(false);
+
   const [step, setStep] = useState<'upload' | 'mapping' | 'dashboard'>('upload');
 
   const [uploadedFileName, setUploadedFileName] = useState<string>('');
@@ -52,6 +54,7 @@ export default function LedgerDashboardPage() {
   const [isGeneratingEmail, setIsGeneratingEmail] = useState<boolean>(false);
 
   useEffect(() => {
+    setMounted(true);
     fetch('/api/transactions')
       .then((res) => res.json())
       .then((data) => {
@@ -67,11 +70,11 @@ export default function LedgerDashboardPage() {
             clarificationNeeded: Boolean(t.client_clarification_needed)
           }));
           setTransactions(mappedFromDB);
-          setUploadedFileName('SQLite DB');
+          setUploadedFileName('Saved Ledger');
           setStep('dashboard');
         }
       })
-      .catch((err) => console.log('No prior SQLite transactions loaded', err));
+      .catch((err) => console.log('No saved transactions found', err));
   }, []);
 
   const handleFileParsed = (headers: string[], rows: Record<string, any>[], fileName: string) => {
@@ -81,10 +84,10 @@ export default function LedgerDashboardPage() {
     setStep('mapping');
   };
 
-  const handleLoadPRDScenarios = async () => {
-    setUploadedFileName('PRD_Verification_Suite.csv');
+  const handleLoadSampleData = async () => {
+    setUploadedFileName('sample_ledger.csv');
     setStep('dashboard');
-    await runAIClassification(PRD_DEMO_SCENARIOS);
+    await runAIClassification(SAMPLE_TEST_SCENARIOS);
   };
 
   const handleMappingComplete = async (mappedTransactions: Array<{ id: string; date: string; description: string; amount: number }>) => {
@@ -162,7 +165,7 @@ export default function LedgerDashboardPage() {
         body: JSON.stringify({ id, categoryCode: newCode })
       });
     } catch (err) {
-      console.error('Error updating transaction in SQLite:', err);
+      console.error('Error updating transaction:', err);
     }
   };
 
@@ -205,30 +208,47 @@ export default function LedgerDashboardPage() {
   const lowConfCount = transactions.filter((t) => (t.confidence ?? 0) < 0.5).length;
   const highConfCount = transactions.filter((t) => (t.confidence ?? 0) >= 0.85).length;
 
+  if (!mounted) {
+    return (
+      <main className="min-h-screen bg-zinc-50/50 text-zinc-900 font-sans antialiased">
+        <header className="sticky top-0 z-40 bg-white border-b border-zinc-200 px-6 py-3.5">
+          <div className="max-w-6xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 bg-lime-400 rounded-lg flex items-center justify-center font-black text-zinc-950 text-xs">
+                LS
+              </div>
+              <h1 className="text-base font-bold text-zinc-900 tracking-tight">
+                LedgerSync AI
+              </h1>
+            </div>
+          </div>
+        </header>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-zinc-50/50 text-zinc-900 font-sans antialiased">
-      {/* Minimal Header */}
+      {/* Clean Header */}
       <header className="sticky top-0 z-40 bg-white border-b border-zinc-200 px-6 py-3.5">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-lime-400 rounded-lg flex items-center justify-center font-black text-zinc-950 text-xs">
+            <div className="w-7 h-7 bg-lime-400 rounded-lg flex items-center justify-center font-black text-zinc-950 text-xs shadow-2xs">
               LS
             </div>
             <h1 className="text-base font-bold text-zinc-900 tracking-tight">
               LedgerSync AI
             </h1>
-            <span className="text-xs text-zinc-400 font-medium">|</span>
+            <span className="text-xs text-zinc-300 font-medium">|</span>
             <span className="text-xs font-semibold text-zinc-500">
               QuickBooks COA Parser
             </span>
           </div>
 
           <div className="flex items-center gap-2 text-xs">
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-zinc-100 text-zinc-800 rounded-lg font-medium">
-              <Cpu className="w-3.5 h-3.5 text-zinc-600" /> Groq LLM
-            </span>
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-lime-100 text-lime-950 border border-lime-300 rounded-lg font-bold">
-              <Database className="w-3.5 h-3.5 text-lime-700" /> SQLite
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-lime-100 text-lime-950 border border-lime-300 rounded-lg font-bold">
+              <Sparkles className="w-3.5 h-3.5 text-lime-700" />
+              AI Classification Engine
             </span>
           </div>
         </div>
@@ -236,7 +256,7 @@ export default function LedgerDashboardPage() {
 
       {/* Main Container */}
       <div className="max-w-6xl mx-auto p-6 md:p-8 space-y-6">
-        {/* Minimal Steps */}
+        {/* Step Indicator */}
         <div className="flex items-center gap-2 text-xs font-medium text-zinc-400 border-b border-zinc-200 pb-3">
           <span className={`px-2 py-0.5 rounded-md ${step === 'upload' ? 'bg-zinc-900 text-white font-bold' : 'text-zinc-600'}`}>
             1. Import File
@@ -255,7 +275,7 @@ export default function LedgerDashboardPage() {
         {step === 'upload' && (
           <FileUploader
             onFileParsed={handleFileParsed}
-            onLoadPRDScenarios={handleLoadPRDScenarios}
+            onLoadPRDScenarios={handleLoadSampleData}
           />
         )}
 
@@ -286,7 +306,7 @@ export default function LedgerDashboardPage() {
               onUpdateCategory={handleUpdateCategory}
               onOpenDraftEmailModal={handleOpenDraftEmail}
               onResetUpload={handleReset}
-              onLoadPRDScenarios={handleLoadPRDScenarios}
+              onLoadPRDScenarios={handleLoadSampleData}
               isClassifying={isClassifying}
             />
           </div>
